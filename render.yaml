@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: rz7-cloud-os
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app

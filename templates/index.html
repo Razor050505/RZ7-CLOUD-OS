@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>RZ7 CLOUD OS</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/style.css') }}">
+
+</head>
+
+<body>
+
+    <!-- Navbar -->
+    <div class="navbar">
+
+        <div class="nav-title">
+            ☁ RZ7 CLOUD OS
+        </div>
+
+        <div class="nav-user">
+            👤 Razor
+        </div>
+
+    </div>
+
+    <!-- Layout -->
+    <div class="layout">
+
+        <!-- Sidebar -->
+        <div class="sidebar">
+
+            <h3>MENU</h3>
+
+            <a href="#">🏠 Dashboard</a>
+            <a href="#">📂 Projects</a>
+            <a href="#">🤖 Telegram</a>
+            <a href="#">☁ Storage</a>
+            <a href="#">📦 APK</a>
+            <a href="#">🔑 API</a>
+            <a href="#">📊 Monitoring</a>
+            <a href="#">⚙ Settings</a>
+
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+
+            <div class="logo">
+                ☁ RZ7 CLOUD OS
+            </div>
+
+            <div class="subtitle">
+                Powered by RZ Corporation
+            </div>
+
+            <div class="container">
+
+                <!-- Welcome -->
+                <div class="card">
+
+                    <h2>👋 Welcome</h2>
+
+                    <p>Selamat datang di <strong>RZ7 Cloud OS</strong>.</p>
+
+                    <p>Kelola Project, Bot Telegram, Storage, API, AI, dan Monitoring dalam satu dashboard.</p>
+
+                </div>
+
+                <!-- Version -->
+                <div class="card">
+
+                    <h2>🚀 Version</h2>
+
+                    <p>RZ7 Cloud OS Alpha v0.1</p>
+
+                    <p>Powered by RZ Corporation</p>
+
+                </div>
+
+                <!-- System Status -->
+                <div class="card">
+
+                    <h2>System Status</h2>
+
+                    <p class="online">
+                        🟢 ONLINE
+                    </p>
+
+                </div>
+
+                <!-- Founder -->
+                <div class="card">
+
+                    <h2>Founder</h2>
+
+                    <p>Razor</p>
+
+                </div>
+
+                <!-- Modules -->
+                <div class="card">
+
+                    <h2>Modules</h2>
+
+                    <p>📂 Projects</p>
+                    <p>🤖 Telegram</p>
+                    <p>☁ Storage</p>
+                    <p>📦 APK</p>
+                    <p>🔑 API</p>
+                    <p>🧠 AI</p>
+                    <p>📊 Monitoring</p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+
+</body>
+</html>
