@@ -3,8 +3,16 @@ from flask_login import LoginManager, current_user, login_required
 from routes.auth import auth_bp
 import os
 
-app = Flask(__name__, template_folder='frontend', static_folder='frontend')
-app.secret_key = 'rz7-secret-key-change-later' # Ganti dengan secret key yang aman nanti
+# Dapatkan root directory project secara dinamis agar aman di Render
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+
+app = Flask(
+    __name__,
+    template_folder=os.path.join(BASE_DIR, 'frontend'),
+    static_folder=os.path.join(BASE_DIR, 'frontend'),
+    static_url_path='/static'
+)
+app.secret_key = 'rz7-secret-key-change-later'  # Ganti dengan secret key yang aman nanti
 
 # Inisialisasi Flask-Login
 login_manager = LoginManager()
@@ -29,7 +37,7 @@ def home():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    return render_template('index.html') # Mengarah ke frontend/index.html yang sudah ada
+    return render_template('index.html')  # Mengarah ke frontend/index.html yang sudah ada
 
 @app.route('/status')
 def status():
