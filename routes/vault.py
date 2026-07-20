@@ -6,19 +6,15 @@ from flask_login import login_required, current_user
 
 vault_bp = Blueprint('vault', __name__)
 
-# Konfigurasi path yang kompatibel dengan Render & Android IDE
 BASE_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 VAULT_DB_PATH = os.path.join(BASE_DIR, 'database', 'vaults.json')
-
-# Secret key untuk obfuscation
 OBFUSCATION_KEY = b'rz7-cloud-os-v04-android-ide-safe-key=='
 
 def _xor_obfuscate(data: bytes, key: bytes) -> bytes:
     return bytes([b ^ key[i % len(key)] for i, b in enumerate(data)])
 
 def encrypt_key(plain_text: str) -> str:
-    encrypted = _xor_obfuscate(plain_text.encode(), OBFUSCATION_KEY)
-    return base64.b64encode(encrypted).decode()
+    return base64.b64encode(_xor_obfuscate(plain_text.encode(), OBFUSCATION_KEY)).decode()
 
 def decrypt_key(encrypted_text: str) -> str:
     try:
@@ -28,13 +24,10 @@ def decrypt_key(encrypted_text: str) -> str:
         return ""
 
 def load_vault_db():
-    """Memuat DB dengan auto-create jika belum ada"""
     if not os.path.exists(VAULT_DB_PATH):
-        # Buat folder dan file kosong jika belum ada
         os.makedirs(os.path.dirname(VAULT_DB_PATH), exist_ok=True)
         save_vault_db({})
         return {}
-    
     with open(VAULT_DB_PATH, 'r') as f:
         try:
             return json.load(f)
@@ -52,7 +45,6 @@ def vault_page():
     try:
         db = load_vault_db()
         user_vault = db.get(current_user.id, [])
-        
         decrypted_entries = []
         for entry in user_vault:
             plain_key = decrypt_key(entry['encrypted_key'])
@@ -63,10 +55,10 @@ def vault_page():
                 'masked_key': masked_key,
                 'created_at': entry['created_at']
             })
-                
         return render_template('vault.html', entries=decrypted_entries)
     except Exception as e:
         print(f"[VAULT ERROR]: {str(e)}")
+        # Fallback: tampilkan halaman kosong jika ada error, jangan 500
         return render_template('vault.html', entries=[]), 200
 
 @vault_bp.route('/api/vault/add', methods=['POST'])
@@ -81,11 +73,10 @@ def add_vault_entry():
             return jsonify({'error': 'Nama dan API Key wajib diisi'}), 400
         
         encrypted_key = encrypt_key(api_key)
-        
         db = load_vault_db()
         if current_user.id not in db:
             db[current_user.id] = []
-        
+            
         new_entry = {
             'id': str(len(db[current_user.id]) + 1),
             'name': name,
@@ -95,7 +86,6 @@ def add_vault_entry():
         
         db[current_user.id].append(new_entry)
         save_vault_db(db)
-        
         return jsonify({'message': 'API Key berhasil disimpan'}), 200
     except Exception as e:
         print(f"[ADD VAULT ERROR]: {str(e)}")
@@ -107,15 +97,13 @@ def delete_vault_entry(entry_id):
     try:
         db = load_vault_db()
         user_vault = db.get(current_user.id, [])
-        
         new_vault = [e for e in user_vault if e['id'] != entry_id]
         
         if len(new_vault) == len(user_vault):
             return jsonify({'error': 'Entry tidak ditemukan'}), 404
-        
+            
         db[current_user.id] = new_vault
         save_vault_db(db)
-        
         return jsonify({'message': 'Entry berhasil dihapus'}), 200
     except Exception as e:
         print(f"[DELETE VAULT ERROR]: {str(e)}")
@@ -127,11 +115,11 @@ def reveal_vault_entry(entry_id):
     try:
         db = load_vault_db()
         user_vault = db.get(current_user.id, [])
-        
         entry = next((e for e in user_vault if e['id'] == entry_id), None)
+        
         if not entry:
             return jsonify({'error': 'Entry tidak ditemukan'}), 404
-        
+            
         plain_key = decrypt_key(entry['encrypted_key'])
         if not plain_key:
             return jsonify({'error': 'Gagal mendekripsi kunci'}), 500
