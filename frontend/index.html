@@ -11,16 +11,16 @@
             --bg-primary: #ffffff;
             --bg-secondary: #f8f9fa;
             --text-primary: #212529;
-            --text-muted: #6c757d;
+            --text-muted: #6c757d; /* Abu-abu standar Bootstrap */
             --border-color: #dee2e6;
             --card-bg: #ffffff;
             --accent-color: #0d6efd;
             --progress-bg: #e9ecef;
             
             /* Warna Progress Bar untuk Light Mode */
-            --progress-cpu: #0dcaf0;   /* Cyan/Info */
-            --progress-ram: #ffc107;   /* Yellow/Warning */
-            --progress-storage: #198754; /* Green/Success */
+            --progress-cpu: #0dcaf0;   
+            --progress-ram: #ffc107;   
+            --progress-storage: #198754; 
         }
 
         /* Dark Mode Variables */
@@ -28,13 +28,13 @@
             --bg-primary: #121212;
             --bg-secondary: #1e1e1e;
             --text-primary: #e0e0e0;
-            --text-muted: #a0a0a0;
+            --text-muted: #a0a0a0; /* DIPERBAIKI: Lebih terang agar terbaca di background gelap */
             --border-color: #333333;
             --card-bg: #1e1e1e;
             --accent-color: #4dabf7;
             --progress-bg: #333333;
             
-            /* Warna Progress Bar Lebih Terang untuk Dark Mode agar Kontras */
+            /* Warna Progress Bar Lebih Terang untuk Dark Mode */
             --progress-cpu: #3dd8f0;   
             --progress-ram: #ffda6a;   
             --progress-storage: #2ea06b; 
@@ -64,12 +64,18 @@
             color: var(--text-primary);
         }
         
-        /* Override Bootstrap Progress Bar Colors */
+        /* Override Bootstrap Progress Bar Colors & Text */
         .progress { background-color: var(--progress-bg); height: 8px; }
         .progress-bar.bg-info { background-color: var(--progress-cpu) !important; }
         .progress-bar.bg-warning { background-color: var(--progress-ram) !important; }
         .progress-bar.bg-success { background-color: var(--progress-storage) !important; }
         
+        /* Pastikan teks small/muted di dalam card selalu terbaca */
+        .card-custom .text-muted {
+            color: var(--text-muted) !important;
+            opacity: 1 !important; /* Mencegah Bootstrap mengurangi opacity */
+        }
+
         .status-online { color: #198754; font-weight: bold; }
         
         .theme-toggle {
@@ -100,7 +106,7 @@
                 </div>
                 <ul class="nav flex-column">
                     <li class="nav-item"><a class="nav-link active" href="/dashboard"> Dashboard</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#">📁 My Projects</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#"> My Projects</a></li>
                     <li class="nav-item"><a class="nav-link" href="#"> AI Assistant</a></li>
                     <li class="nav-item"><a class="nav-link" href="#"> APK Manager</a></li>
                     <li class="nav-item"><a class="nav-link" href="/storage">☁ Cloud Storage</a></li>
@@ -173,7 +179,7 @@
             } else {
                 root.removeAttribute('data-theme');
                 localStorage.setItem('rz7-theme', 'light');
-                toggleBtn.innerHTML = ' Dark Mode';
+                toggleBtn.innerHTML = '🌙 Dark Mode';
             }
         }
 
