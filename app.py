@@ -1,18 +1,20 @@
-from flask import Flask, render_template, jsonify, redirect, url_for
+from flask import Flask, render_template, jsonify, redirect, url_for, send_from_directory
 from flask_login import LoginManager, current_user, login_required
 from routes.auth import auth_bp
 import os
 
-# Dapatkan root directory project secara dinamis agar aman di Render
+# Konfigurasi path yang kompatibel dengan Render
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+TEMPLATE_DIR = os.path.join(BASE_DIR, 'frontend')
+STATIC_DIR = os.path.join(BASE_DIR, 'frontend')
 
 app = Flask(
     __name__,
-    template_folder=os.path.join(BASE_DIR, 'frontend'),
-    static_folder=os.path.join(BASE_DIR, 'frontend'),
+    template_folder=TEMPLATE_DIR,
+    static_folder=STATIC_DIR,
     static_url_path='/static'
 )
-app.secret_key = 'rz7-secret-key-change-later'  # Ganti dengan secret key yang aman nanti
+app.secret_key = 'rz7-secret-key-change-later'
 
 # Inisialisasi Flask-Login
 login_manager = LoginManager()
@@ -37,7 +39,16 @@ def home():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    return render_template('index.html')  # Mengarah ke frontend/index.html yang sudah ada
+    # Fallback: jika render_template gagal, coba baca file manual
+    try:
+        return render_template('index.html')
+    except Exception as e:
+        print(f"[ERROR] Template not found, trying fallback: {e}")
+        index_path = os.path.join(TEMPLATE_DIR, 'index.html')
+        if os.path.exists(index_path):
+            with open(index_path, 'r') as f:
+                return f.read()
+        return "Dashboard file missing!", 500
 
 @app.route('/status')
 def status():
