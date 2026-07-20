@@ -58,7 +58,6 @@ def vault_page():
         return render_template('vault.html', entries=decrypted_entries)
     except Exception as e:
         print(f"[VAULT ERROR]: {str(e)}")
-        # Fallback: tampilkan halaman kosong jika ada error, jangan 500
         return render_template('vault.html', entries=[]), 200
 
 @vault_bp.route('/api/vault/add', methods=['POST'])
