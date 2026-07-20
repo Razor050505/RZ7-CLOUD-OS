@@ -1,22 +1,25 @@
 import os
 from flask import Flask, render_template, jsonify, redirect, url_for
 from flask_login import LoginManager, current_user, login_required
+
+# Import Blueprints
 from routes.auth import auth_bp
 from routes.storage import storage_bp
 from routes.vault import vault_bp
 
-# Inisialisasi App dengan path absolut
+# Konfigurasi Path Absolut (Penting untuk Render)
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 TEMPLATE_DIR = os.path.join(BASE_DIR, 'frontend')
 STATIC_DIR = os.path.join(BASE_DIR, 'frontend')
 
+# Inisialisasi Flask App
 app = Flask(
     __name__,
     template_folder=TEMPLATE_DIR,
     static_folder=STATIC_DIR,
     static_url_path='/static'
 )
-app.secret_key = 'rz7-secret-key-change-later'
+app.secret_key = 'rz7-secret-key-change-later-in-production'
 
 # Setup Login Manager
 login_manager = LoginManager()
@@ -28,12 +31,13 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(storage_bp)
 app.register_blueprint(vault_bp)
 
-# User Loader
+# User Loader untuk Flask-Login
 @login_manager.user_loader
 def load_user(user_id):
     from routes.auth import User
     return User(user_id)
 
+# Routes Utama
 @app.route('/')
 def home():
     if current_user.is_authenticated:
