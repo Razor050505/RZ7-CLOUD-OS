@@ -18,26 +18,23 @@
             --progress-bg: #e9ecef;
         }
 
-        /* Dark Mode Variables (Auto-detect & Manual Override) */
-        [data-theme="dark"], 
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --bg-primary: #121212;
-                --bg-secondary: #1e1e1e;
-                --text-primary: #e0e0e0;
-                --text-muted: #a0a0a0;
-                --border-color: #333333;
-                --card-bg: #1e1e1e;
-                --accent-color: #4dabf7;
-                --progress-bg: #333333;
-            }
+        /* Dark Mode Variables - Menggunakan [data-theme="dark"] agar bisa di-override JS */
+        [data-theme="dark"] {
+            --bg-primary: #121212;
+            --bg-secondary: #1e1e1e;
+            --text-primary: #e0e0e0;
+            --text-muted: #a0a0a0;
+            --border-color: #333333;
+            --card-bg: #1e1e1e;
+            --accent-color: #4dabf7;
+            --progress-bg: #333333;
         }
 
         body { 
             background-color: var(--bg-primary); 
             color: var(--text-primary); 
             min-height: 100vh; 
-            transition: all 0.3s ease;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
         
         .sidebar { 
@@ -48,7 +45,7 @@
         }
         
         .nav-link { color: var(--text-muted); margin-bottom: 5px; border-radius: 5px; }
-        .nav-link:hover, .nav-link.active { background-color: var(--accent-color); color: white; }
+        .nav-link:hover, .nav-link.active { background-color: var(--accent-color); color: white !important; }
         
         .card-custom { 
             background-color: var(--card-bg); 
@@ -60,7 +57,6 @@
         .progress { background-color: var(--progress-bg); height: 8px; }
         .status-online { color: #198754; font-weight: bold; }
         
-        /* Theme Toggle Button Style */
         .theme-toggle {
             cursor: pointer;
             padding: 8px 12px;
@@ -71,6 +67,7 @@
             width: 100%;
             text-align: left;
             margin-top: 10px;
+            transition: all 0.2s;
         }
         .theme-toggle:hover { background-color: var(--border-color); }
     </style>
@@ -95,7 +92,7 @@
                     <li class="nav-item"><a class="nav-link" href="#">🔑 API Vault</a></li>
                     <li class="nav-item"><a class="nav-link" href="#">💻 Terminal</a></li>
                     <li class="nav-item"><a class="nav-link" href="#"> Monitoring</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#">⚙ Settings</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#"> Settings</a></li>
                 </ul>
                 
                 <!-- Manual Theme Toggle -->
@@ -149,30 +146,49 @@
     </div>
 
     <script>
-        // Logic Theme Toggle (Manual + Auto Detect)
+        // Logic Theme Toggle yang Lebih Robust
         const toggleBtn = document.getElementById('themeToggle');
         const root = document.documentElement;
         
-        // Cek preferensi tersimpan atau deteksi sistem
-        let isDark = localStorage.getItem('theme') === 'dark' || 
-                     (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
-        
-        function updateTheme() {
+        // Fungsi untuk menerapkan tema
+        function applyTheme(isDark) {
             if (isDark) {
                 root.setAttribute('data-theme', 'dark');
+                localStorage.setItem('rz7-theme', 'dark');
                 toggleBtn.innerHTML = '☀️ Light Mode';
             } else {
                 root.removeAttribute('data-theme');
+                localStorage.setItem('rz7-theme', 'light');
                 toggleBtn.innerHTML = '🌙 Dark Mode';
             }
         }
+
+        // Cek preferensi saat load
+        let savedTheme = localStorage.getItem('rz7-theme');
+        let isDark = false;
+
+        if (savedTheme === 'dark') {
+            isDark = true;
+        } else if (savedTheme === 'light') {
+            isDark = false;
+        } else {
+            // Jika belum pernah set, ikuti sistem HP
+            isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        }
+
+        applyTheme(isDark);
         
-        updateTheme();
-        
+        // Event Listener untuk tombol
         toggleBtn.addEventListener('click', () => {
             isDark = !isDark;
-            localStorage.setItem('theme', isDark ? 'dark' : 'light');
-            updateTheme();
+            applyTheme(isDark);
+        });
+
+        // Listen perubahan tema sistem HP secara real-time
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+            if (!localStorage.getItem('rz7-theme')) {
+                applyTheme(e.matches);
+            }
         });
     </script>
 </body>
