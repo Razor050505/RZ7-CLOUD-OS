@@ -1,6 +1,7 @@
 from flask import Flask, render_template, jsonify, redirect, url_for, send_from_directory
 from flask_login import LoginManager, current_user, login_required
 from routes.auth import auth_bp
+from routes.storage import storage_bp  # Import blueprint storage baru
 import os
 
 # Konfigurasi path yang kompatibel dengan Render
@@ -21,8 +22,9 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'auth.login'
 
-# Register Blueprint
+# Register Blueprint (Auth & Storage)
 app.register_blueprint(auth_bp)
+app.register_blueprint(storage_bp)  # Register blueprint storage
 
 # User Loader untuk Flask-Login
 @login_manager.user_loader
@@ -39,7 +41,6 @@ def home():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    # Fallback: jika render_template gagal, coba baca file manual
     try:
         return render_template('index.html')
     except Exception as e:
@@ -52,7 +53,7 @@ def dashboard():
 
 @app.route('/status')
 def status():
-    return jsonify({"status": "online", "version": "v0.2 Alpha"})
+    return jsonify({"status": "online", "version": "v0.3 Alpha - Cloud Storage Active"})
 
 if __name__ == '__main__':
     app.run(debug=True)
