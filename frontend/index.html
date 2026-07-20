@@ -16,9 +16,14 @@
             --card-bg: #ffffff;
             --accent-color: #0d6efd;
             --progress-bg: #e9ecef;
+            
+            /* Warna Progress Bar untuk Light Mode */
+            --progress-cpu: #0dcaf0;   /* Cyan/Info */
+            --progress-ram: #ffc107;   /* Yellow/Warning */
+            --progress-storage: #198754; /* Green/Success */
         }
 
-        /* Dark Mode Variables - Menggunakan [data-theme="dark"] agar bisa di-override JS */
+        /* Dark Mode Variables */
         [data-theme="dark"] {
             --bg-primary: #121212;
             --bg-secondary: #1e1e1e;
@@ -28,6 +33,11 @@
             --card-bg: #1e1e1e;
             --accent-color: #4dabf7;
             --progress-bg: #333333;
+            
+            /* Warna Progress Bar Lebih Terang untuk Dark Mode agar Kontras */
+            --progress-cpu: #3dd8f0;   
+            --progress-ram: #ffda6a;   
+            --progress-storage: #2ea06b; 
         }
 
         body { 
@@ -54,7 +64,12 @@
             color: var(--text-primary);
         }
         
+        /* Override Bootstrap Progress Bar Colors */
         .progress { background-color: var(--progress-bg); height: 8px; }
+        .progress-bar.bg-info { background-color: var(--progress-cpu) !important; }
+        .progress-bar.bg-warning { background-color: var(--progress-ram) !important; }
+        .progress-bar.bg-success { background-color: var(--progress-storage) !important; }
+        
         .status-online { color: #198754; font-weight: bold; }
         
         .theme-toggle {
@@ -84,7 +99,7 @@
                     <span>{{ current_user.id }}</span>
                 </div>
                 <ul class="nav flex-column">
-                    <li class="nav-item"><a class="nav-link active" href="/dashboard">📊 Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="/dashboard"> Dashboard</a></li>
                     <li class="nav-item"><a class="nav-link" href="#">📁 My Projects</a></li>
                     <li class="nav-item"><a class="nav-link" href="#"> AI Assistant</a></li>
                     <li class="nav-item"><a class="nav-link" href="#"> APK Manager</a></li>
@@ -146,11 +161,10 @@
     </div>
 
     <script>
-        // Logic Theme Toggle yang Lebih Robust
+        // Logic Theme Toggle (Sama dengan sebelumnya)
         const toggleBtn = document.getElementById('themeToggle');
         const root = document.documentElement;
         
-        // Fungsi untuk menerapkan tema
         function applyTheme(isDark) {
             if (isDark) {
                 root.setAttribute('data-theme', 'dark');
@@ -159,11 +173,10 @@
             } else {
                 root.removeAttribute('data-theme');
                 localStorage.setItem('rz7-theme', 'light');
-                toggleBtn.innerHTML = '🌙 Dark Mode';
+                toggleBtn.innerHTML = ' Dark Mode';
             }
         }
 
-        // Cek preferensi saat load
         let savedTheme = localStorage.getItem('rz7-theme');
         let isDark = false;
 
@@ -172,19 +185,16 @@
         } else if (savedTheme === 'light') {
             isDark = false;
         } else {
-            // Jika belum pernah set, ikuti sistem HP
             isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         }
 
         applyTheme(isDark);
         
-        // Event Listener untuk tombol
         toggleBtn.addEventListener('click', () => {
             isDark = !isDark;
             applyTheme(isDark);
         });
 
-        // Listen perubahan tema sistem HP secara real-time
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
             if (!localStorage.getItem('rz7-theme')) {
                 applyTheme(e.matches);
