@@ -1,274 +1,133 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>API Vault - RZ7 CLOUD OS</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        :root {
-            --bg-primary: #ffffff; --bg-secondary: #f8f9fa; --text-primary: #212529;
-            --text-muted: #6c757d; --border-color: #dee2e6; --card-bg: #ffffff;
-            --accent-color: #0d6efd;
-        }
-        [data-theme="dark"] {
-            --bg-primary: #121212; --bg-secondary: #1e1e1e; --text-primary: #e0e0e0;
-            --text-muted: #a0a0a0; --border-color: #333333; --card-bg: #1e1e1e;
-            --accent-color: #4dabf7;
-        }
-        body { background-color: var(--bg-primary); color: var(--text-primary); min-height: 100vh; transition: all 0.3s ease; }
-        .sidebar { background-color: var(--bg-secondary); min-height: 100vh; padding-top: 20px; border-right: 1px solid var(--border-color); }
-        .nav-link { color: var(--text-muted); margin-bottom: 5px; border-radius: 5px; }
-        .nav-link:hover, .nav-link.active { background-color: var(--accent-color); color: white !important; }
-        .card-custom { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-primary); }
-        .vault-item { padding: 15px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
-        .vault-item:last-child { border-bottom: none; }
-        .masked-key { font-family: monospace; background: var(--bg-secondary); padding: 4px 8px; border-radius: 4px; font-size: 0.9em; letter-spacing: 1px; }
-        .theme-toggle { cursor: pointer; padding: 8px 12px; border-radius: 5px; border: 1px solid var(--border-color); background: transparent; color: var(--text-primary); width: 100%; text-align: left; margin-top: 10px; }
-        .theme-toggle:hover { background-color: var(--border-color); }
-        .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1050; }
+import os
+import json
+import base64
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for
+from flask_login import login_required, current_user
+
+vault_bp = Blueprint('vault', __name__)
+
+# Konfigurasi path database vault
+BASE_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+VAULT_DB_PATH = os.path.join(BASE_DIR, 'database', 'vaults.json')
+
+# Secret key untuk obfuscation (Aman untuk Android IDE & Render)
+OBFUSCATION_KEY = b'rz7-cloud-os-v04-android-ide-safe-key=='
+
+def _xor_obfuscate(data: bytes, key: bytes) -> bytes:
+    """XOR simple obfuscation compatible with all Python environments"""
+    return bytes([b ^ key[i % len(key)] for i, b in enumerate(data)])
+
+def encrypt_key(plain_text: str) -> str:
+    """Encrypt API key using Base64 + XOR"""
+    encrypted = _xor_obfuscate(plain_text.encode(), OBFUSCATION_KEY)
+    return base64.b64encode(encrypted).decode()
+
+def decrypt_key(encrypted_text: str) -> str:
+    """Decrypt API key from Base64 + XOR"""
+    try:
+        encrypted = base64.b64decode(encrypted_text.encode())
+        return _xor_obfuscate(encrypted, OBFUSCATION_KEY).decode()
+    except Exception:
+        return ""
+
+def load_vault_db():
+    """Memuat database vault dari file JSON"""
+    if not os.path.exists(VAULT_DB_PATH):
+        return {}
+    with open(VAULT_DB_PATH, 'r') as f:
+        try:
+            return json.load(f)
+        except json.JSONDecodeError:
+            return {}
+
+def save_vault_db(data):
+    """Menyimpan database vault ke file JSON"""
+    os.makedirs(os.path.dirname(VAULT_DB_PATH), exist_ok=True)
+    with open(VAULT_DB_PATH, 'w') as f:
+        json.dump(data, f, indent=2)
+
+@vault_bp.route('/vault')
+@login_required
+def vault_page():
+    """Menampilkan halaman API Vault Manager"""
+    db = load_vault_db()
+    user_vault = db.get(current_user.id, [])
+    
+    # Dekripsi semua entry untuk ditampilkan (dengan masking)
+    decrypted_entries = []
+    for entry in user_vault:
+        plain_key = decrypt_key(entry['encrypted_key'])
+        masked_key = plain_key[:8] + '****' + plain_key[-4:] if len(plain_key) > 12 else '****'
+        decrypted_entries.append({
+            'id': entry['id'],
+            'name': entry['name'],
+            'masked_key': masked_key,
+            'created_at': entry['created_at']
+        })
+            
+    return render_template('vault.html', entries=decrypted_entries)
+
+@vault_bp.route('/api/vault/add', methods=['POST'])
+@login_required
+def add_vault_entry():
+    """Menambahkan entry baru dengan obfuscation"""
+    data = request.get_json()
+    name = data.get('name', '').strip()
+    api_key = data.get('api_key', '').strip()
+    
+    if not name or not api_key:
+        return jsonify({'error': 'Nama dan API Key wajib diisi'}), 400
+    
+    # Obfuscate API Key sebelum disimpan
+    encrypted_key = encrypt_key(api_key)
+    
+    db = load_vault_db()
+    if current_user.id not in db:
+        db[current_user.id] = []
+    
+    new_entry = {
+        'id': str(len(db[current_user.id]) + 1),
+        'name': name,
+        'encrypted_key': encrypted_key,
+        'created_at': __import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M')
+    }
+    
+    db[current_user.id].append(new_entry)
+    save_vault_db(db)
+    
+    return jsonify({'message': 'API Key berhasil disimpan dengan proteksi'}), 200
+
+@vault_bp.route('/api/vault/delete/<entry_id>', methods=['DELETE'])
+@login_required
+def delete_vault_entry(entry_id):
+    """Menghapus entry vault milik user sendiri"""
+    db = load_vault_db()
+    user_vault = db.get(current_user.id, [])
+    
+    new_vault = [e for e in user_vault if e['id'] != entry_id]
+    
+    if len(new_vault) == len(user_vault):
+        return jsonify({'error': 'Entry tidak ditemukan'}), 404
+    
+    db[current_user.id] = new_vault
+    save_vault_db(db)
+    
+    return jsonify({'message': 'Entry berhasil dihapus'}), 200
+
+@vault_bp.route('/api/vault/reveal/<entry_id>')
+@login_required
+def reveal_vault_entry(entry_id):
+    """Dekripsi dan kembalikan API Key asli"""
+    db = load_vault_db()
+    user_vault = db.get(current_user.id, [])
+    
+    entry = next((e for e in user_vault if e['id'] == entry_id), None)
+    if not entry:
+        return jsonify({'error': 'Entry tidak ditemukan'}), 404
+    
+    plain_key = decrypt_key(entry['encrypted_key'])
+    if not plain_key:
+        return jsonify({'error': 'Gagal mendekripsi kunci'}), 500
         
-        /* Modal Dark Mode Fix */
-        .modal-content { background-color: var(--card-bg); color: var(--text-primary); border: 1px solid var(--border-color); }
-        .modal-header, .modal-footer { border-color: var(--border-color); }
-        .form-control { background-color: var(--bg-secondary); color: var(--text-primary); border-color: var(--border-color); }
-        .form-control:focus { background-color: var(--bg-secondary); color: var(--text-primary); border-color: var(--accent-color); box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25); }
-        .btn-close { filter: invert(var(--invert-val, 0)); }
-        [data-theme="dark"] .btn-close { --invert-val: 1; }
-    </style>
-</head>
-<body>
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar -->
-            <div class="col-md-3 col-lg-2 sidebar d-none d-md-block">
-                <h4 class="text-center mb-4">☁ RZ7 CLOUD OS</h4>
-                <p class="text-center text-muted small">v0.4 Alpha</p>
-                <div class="d-flex align-items-center mb-4 px-3">
-                    <span class="badge bg-primary me-2"></span>
-                    <span>{{ current_user.id }}</span>
-                </div>
-                <ul class="nav flex-column">
-                    <li class="nav-item"><a class="nav-link" href="/dashboard"> Dashboard</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#"> My Projects</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#"> AI Assistant</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#"> APK Manager</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/storage">☁ Cloud Storage</a></li>
-                    <li class="nav-item"><a class="nav-link active" href="/vault"> API Vault</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#">💻 Terminal</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#"> Monitoring</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#"> Settings</a></li>
-                </ul>
-                <button id="themeToggle" class="theme-toggle mt-4"> Dark Mode</button>
-                <hr class="border-secondary mt-4">
-                <a href="/logout" class="btn btn-outline-danger w-100 mt-3"> Logout</a>
-            </div>
-
-            <!-- Main Content -->
-            <div class="col-md-9 col-lg-10 p-4">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h3>🔑 API Vault Manager</h3>
-                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addVaultModal">+ Tambah API Key</button>
-                </div>
-                
-                <div class="card card-custom">
-                    <div class="card-header border-0 bg-transparent">
-                        <h5 class="mb-0">Stored Credentials</h5>
-                    </div>
-                    <div class="card-body p-0" id="vaultList">
-                        {% if entries %}
-                            {% for entry in entries %}
-                            <div class="vault-item">
-                                <div>
-                                    <strong>{{ entry.name }}</strong>
-                                    <br><small class="text-muted">{{ entry.created_at }}</small>
-                                </div>
-                                <div class="d-flex align-items-center gap-2">
-                                    <span class="masked-key">{{ entry.masked_key }}</span>
-                                    <button onclick="revealKey('{{ entry.id }}')" class="btn btn-sm btn-outline-info" title="Salin Kunci">📋</button>
-                                    <button onclick="deleteEntry('{{ entry.id }}')" class="btn btn-sm btn-outline-danger" title="Hapus">🗑️</button>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        {% else %}
-                            <div class="text-center p-4 text-muted">Belum ada API Key yang disimpan</div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Tambah API Key -->
-    <div class="modal fade" id="addVaultModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Tambah API Key Baru</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Nama Layanan</label>
-                        <input type="text" class="form-control" id="vaultName" placeholder="Contoh: OpenAI API, Render Token">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">API Key / Secret</label>
-                        <textarea class="form-control" id="vaultKey" rows="3" placeholder="Tempel API key disini..."></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                    <button type="button" class="btn btn-primary" onclick="saveVault()">Simpan Terenkripsi</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Toast Notification -->
-    <div class="toast-container">
-        <div id="liveToast" class="toast align-items-center text-white bg-success border-0" role="alert">
-            <div class="d-flex">
-                <div class="toast-body" id="toastMessage">Berhasil!</div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-            </div>
-        </div>
-    </div>
-
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>API Vault - RZ7 CLOUD OS</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        :root {
-            --bg-primary: #ffffff; --bg-secondary: #f8f9fa; --text-primary: #212529;
-            --text-muted: #6c757d; --border-color: #dee2e6; --card-bg: #ffffff;
-            --accent-color: #0d6efd;
-        }
-        [data-theme="dark"] {
-            --bg-primary: #121212; --bg-secondary: #1e1e1e; --text-primary: #e0e0e0;
-            --text-muted: #a0a0a0; --border-color: #333333; --card-bg: #1e1e1e;
-            --accent-color: #4dabf7;
-        }
-        body { background-color: var(--bg-primary); color: var(--text-primary); min-height: 100vh; transition: all 0.3s ease; }
-        .sidebar { background-color: var(--bg-secondary); min-height: 100vh; padding-top: 20px; border-right: 1px solid var(--border-color); }
-        .nav-link { color: var(--text-muted); margin-bottom: 5px; border-radius: 5px; }
-        .nav-link:hover, .nav-link.active { background-color: var(--accent-color); color: white !important; }
-        .card-custom { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-primary); }
-        .vault-item { padding: 15px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
-        .vault-item:last-child { border-bottom: none; }
-        .masked-key { font-family: monospace; background: var(--bg-secondary); padding: 4px 8px; border-radius: 4px; font-size: 0.9em; letter-spacing: 1px; }
-        .theme-toggle { cursor: pointer; padding: 8px 12px; border-radius: 5px; border: 1px solid var(--border-color); background: transparent; color: var(--text-primary); width: 100%; text-align: left; margin-top: 10px; }
-        .theme-toggle:hover { background-color: var(--border-color); }
-        .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1050; }
-        
-        /* Modal Dark Mode Fix */
-        .modal-content { background-color: var(--card-bg); color: var(--text-primary); border: 1px solid var(--border-color); }
-        .modal-header, .modal-footer { border-color: var(--border-color); }
-        .form-control { background-color: var(--bg-secondary); color: var(--text-primary); border-color: var(--border-color); }
-        .form-control:focus { background-color: var(--bg-secondary); color: var(--text-primary); border-color: var(--accent-color); box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25); }
-        .btn-close { filter: invert(var(--invert-val, 0)); }
-        [data-theme="dark"] .btn-close { --invert-val: 1; }
-    </style>
-</head>
-<body>
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar -->
-            <div class="col-md-3 col-lg-2 sidebar d-none d-md-block">
-                <h4 class="text-center mb-4">☁ RZ7 CLOUD OS</h4>
-                <p class="text-center text-muted small">v0.4 Alpha</p>
-                <div class="d-flex align-items-center mb-4 px-3">
-                    <span class="badge bg-primary me-2"></span>
-                    <span>{{ current_user.id }}</span>
-                </div>
-                <ul class="nav flex-column">
-                    <li class="nav-item"><a class="nav-link" href="/dashboard"> Dashboard</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#"> My Projects</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#"> AI Assistant</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#"> APK Manager</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/storage">☁ Cloud Storage</a></li>
-                    <li class="nav-item"><a class="nav-link active" href="/vault"> API Vault</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#">💻 Terminal</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#"> Monitoring</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#"> Settings</a></li>
-                </ul>
-                <button id="themeToggle" class="theme-toggle mt-4"> Dark Mode</button>
-                <hr class="border-secondary mt-4">
-                <a href="/logout" class="btn btn-outline-danger w-100 mt-3"> Logout</a>
-            </div>
-
-            <!-- Main Content -->
-            <div class="col-md-9 col-lg-10 p-4">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h3>🔑 API Vault Manager</h3>
-                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addVaultModal">+ Tambah API Key</button>
-                </div>
-                
-                <div class="card card-custom">
-                    <div class="card-header border-0 bg-transparent">
-                        <h5 class="mb-0">Stored Credentials</h5>
-                    </div>
-                    <div class="card-body p-0" id="vaultList">
-                        {% if entries %}
-                            {% for entry in entries %}
-                            <div class="vault-item">
-                                <div>
-                                    <strong>{{ entry.name }}</strong>
-                                    <br><small class="text-muted">{{ entry.created_at }}</small>
-                                </div>
-                                <div class="d-flex align-items-center gap-2">
-                                    <span class="masked-key">{{ entry.masked_key }}</span>
-                                    <button onclick="revealKey('{{ entry.id }}')" class="btn btn-sm btn-outline-info" title="Salin Kunci">📋</button>
-                                    <button onclick="deleteEntry('{{ entry.id }}')" class="btn btn-sm btn-outline-danger" title="Hapus">🗑️</button>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        {% else %}
-                            <div class="text-center p-4 text-muted">Belum ada API Key yang disimpan</div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Tambah API Key -->
-    <div class="modal fade" id="addVaultModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Tambah API Key Baru</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Nama Layanan</label>
-                        <input type="text" class="form-control" id="vaultName" placeholder="Contoh: OpenAI API, Render Token">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">API Key / Secret</label>
-                        <textarea class="form-control" id="vaultKey" rows="3" placeholder="Tempel API key disini..."></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                    <button type="button" class="btn btn-primary" onclick="saveVault()">Simpan Terenkripsi</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Toast Notification -->
-    <div class="toast-container">
-        <div id="liveToast" class="toast align-items-center text-white bg-success border-0" role="alert">
-            <div class="d-flex">
-                <div class="toast-body" id="toastMessage">Berhasil!</div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-            </div>
-        </div>
-    </div>
-
+    return jsonify({'api_key': plain_key}), 200
+		
