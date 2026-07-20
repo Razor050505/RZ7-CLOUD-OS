@@ -1,7 +1,8 @@
 from flask import Flask, render_template, jsonify, redirect, url_for, send_from_directory
 from flask_login import LoginManager, current_user, login_required
 from routes.auth import auth_bp
-from routes.storage import storage_bp  # Import blueprint storage baru
+from routes.storage import storage_bp
+from routes.vault import vault_bp  # Tambahkan import vault
 import os
 
 # Konfigurasi path yang kompatibel dengan Render
@@ -22,9 +23,10 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'auth.login'
 
-# Register Blueprint (Auth & Storage)
+# Register Blueprint (Auth, Storage & Vault)
 app.register_blueprint(auth_bp)
-app.register_blueprint(storage_bp)  # Register blueprint storage
+app.register_blueprint(storage_bp)
+app.register_blueprint(vault_bp)  # Tambahkan register vault
 
 # User Loader untuk Flask-Login
 @login_manager.user_loader
@@ -53,7 +55,7 @@ def dashboard():
 
 @app.route('/status')
 def status():
-    return jsonify({"status": "online", "version": "v0.3 Alpha - Cloud Storage Active"})
+    return jsonify({"status": "online", "version": "v0.4 Alpha - API Vault Active"})
 
 if __name__ == '__main__':
     app.run(debug=True)
