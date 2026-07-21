@@ -7,11 +7,12 @@ from routes.auth import auth_bp
 from routes.storage import storage_bp
 from routes.vault import vault_bp
 
-# Konfigurasi Path Absolut
+# Konfigurasi Path Absolut ke folder 'frontend' di ROOT project
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 TEMPLATE_DIR = os.path.join(BASE_DIR, 'frontend')
-STATIC_DIR = os.path.join(BASE_DIR, 'frontend')
+STATIC_DIR = os.path.join(BASE_DIR, 'static')  # Asumsi folder static juga di root
 
+# Inisialisasi Flask App dengan path eksplisit
 app = Flask(
     __name__,
     template_folder=TEMPLATE_DIR,
@@ -20,19 +21,23 @@ app = Flask(
 )
 app.secret_key = 'rz7-secret-key-change-later-in-production'
 
+# Setup Login Manager
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'auth.login'
 
+# Register Blueprints
 app.register_blueprint(auth_bp)
 app.register_blueprint(storage_bp)
 app.register_blueprint(vault_bp)
 
+# User Loader
 @login_manager.user_loader
 def load_user(user_id):
     from routes.auth import User
     return User(user_id)
 
+# Routes
 @app.route('/')
 def home():
     if current_user.is_authenticated:
